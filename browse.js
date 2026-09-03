@@ -1708,6 +1708,9 @@
     var win = { wb: wb, el: outer };
     var first = addTab();
     win.browser = first.pane.browser;
+    // The first tab's whole pane, for hosts that steer it somewhere other
+    // than home.dmsg — a desk opening its own origin in direct mode, say.
+    win.pane = first.pane;
     // landHome lands the FIRST tab once (the classic single-tab behavior).
     win.landHome = function () { first.pane.landHome(); };
     // openTab opens a NEW tab and (optionally) navigates it: openTab(host,
@@ -3554,7 +3557,7 @@
     };
   }
 
-  globalThis.SkywireBrowse = { createBrowser: createBrowser, mountPanel: mountPanel };
+  globalThis.SkywireBrowse = { createBrowser: createBrowser, mountPanel: mountPanel, createWindow: createWindow };
 })();
 
 // voice-audio.js — main-thread WebAudio proxy for the wasm-visor's 1:1 voice.
