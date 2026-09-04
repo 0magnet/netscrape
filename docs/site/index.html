@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>netscrape sample site</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<h1>A site, fetched by a browser written in Go</h1>
+<p>This page was fetched by <b>netscrape</b> — the chrome above is a Go/wasm
+program drawing DOM through <code>syscall/js</code>, and this page is rendered
+into a sandboxed <code>iframe</code> with its stylesheet inlined by the
+transcoder.</p>
+<p>The stylesheet that colours this page arrived as a separate request, relayed
+out of the sandbox and back in as a <code>&lt;style&gt;</code> element. The
+image below came back as a <code>data:</code> URI the same way.</p>
+<p><img src="dot.svg" alt="a small green circle" width="64" height="64"></p>
+<h2>Follow a link</h2>
+<ul>
+  <li><a href="about.html">about.html</a> — how the transcoder works</li>
+  <li><a href="form.html">form.html</a> — a GET form, relayed to the chrome</li>
+</ul>
+<p>Link clicks inside the sandbox cannot navigate it directly, so they are
+posted to the Go chrome, which loads them in the tab.</p>
+</body></html>

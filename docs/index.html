@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%23a78bfa' stroke-width='1.6'/%3E%3C/svg%3E">
+<title>netscrape — a web browser written in Go</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #15131c; }
+  /* The browser positions itself against this element, so it has to be the one
+     that fills the viewport rather than the body. */
+  #browser { position: absolute; inset: 0; }
+  #boot { padding: 16px; color: #6b7280;
+          font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+<div id="browser"><div id="boot">loading…</div></div>
+<script src="wasm_exec.js"></script>
+<script src="loader.js"></script>
+<script>
+  // New tabs open on the sample site served beside this page.
+  globalThis.__netscrapeStart = new URL("site/index.html", location.href).href;
+
+  const el = document.getElementById("browser");
+  Netscrape.open(el, {
+    wasmURL: "netscrape.wasm",
+    // A static site can only fetch its own origin: anything else is refused by
+    // CORS before the request is even made. Rather than let that surface as a
+    // bare "fetch failed", say what happened and what this page can reach —
+    // the transport is the seam a host replaces, and skywire's wasm visor
+    // replaces it with a dmsg mesh dial.
+    fetch: function (url) {
+      let same = false;
+      try { same = new URL(url, location.href).origin === location.origin; } catch (e) { same = true; }
+      if (same) return fetch(new URL(url, location.href).href);
+      const page =
+        "<body style='font:15px/1.6 ui-sans-serif,system-ui,sans-serif;padding:2.2em;max-width:44em;margin:0 auto;color:#1d2230'>" +
+        "<h1 style='font-size:1.3em;color:#2f3a56'>Outside this origin</h1>" +
+        "<p><code>" + url.replace(/[<&]/g, "") + "</code> is on another origin, and a page served " +
+        "from static hosting cannot fetch one — the browser refuses it before the request leaves.</p>" +
+        "<p>netscrape's transport is a seam: give it a <code>fetch</code> that can reach further and " +
+        "it will render whatever comes back. In skywire's wasm visor that seam dials the dmsg mesh; " +
+        "in <a href='https://github.com/0magnet/shipyard'>shipyard</a> it reaches a Go server running " +
+        "in the same tab over a virtual loopback.</p>" +
+        "<p><a href='site/index.html'>back to the sample site</a></p></body>";
+      return Promise.resolve(new Response(page, {status: 200, headers: {"content-type": "text/html"}}));
+    },
+  });
+  document.getElementById("boot")?.remove();
+</script>
+</body>
+</html>

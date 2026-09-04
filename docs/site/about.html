@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>about — netscrape</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<h1>What just happened</h1>
+<ol>
+  <li>The address went to the Go chrome, which called the page transport.</li>
+  <li>The transport fetched it — here a plain same-origin <code>fetch</code>;
+      in skywire's wasm visor the same seam dials the dmsg mesh instead.</li>
+  <li>The HTML was rendered into a sandboxed <code>srcdoc</code> with a
+      <code>&lt;base&gt;</code>, so its relative URLs still resolve.</li>
+  <li>Stylesheets and images were requested by a shim inside the sandbox,
+      relayed to the chrome by <code>postMessage</code>, and handed back
+      inlined.</li>
+</ol>
+<p><a href="index.html">back</a></p>
+</body></html>

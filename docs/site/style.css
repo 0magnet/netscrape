@@ -1,0 +1,6 @@
+body { font: 15px/1.6 ui-sans-serif, system-ui, sans-serif; color: #1d2230;
+       background: #f6f7fb; margin: 0 auto; padding: 2.2em; max-width: 46em; }
+h1 { font-size: 1.45em; color: #2f3a56; margin-top: 0; }
+h2 { font-size: 1.1em; color: #2f3a56; }
+code { background: #e7eaf3; padding: .1em .35em; border-radius: 3px; }
+a { color: #2a5db0; }

@@ -2,6 +2,16 @@
 
 A web browser written in Go/wasm.
 
+**[Live demo](https://0magnet.github.io/netscrape/)** — the browser, browsing a small site served beside it: stylesheet inlined, image relayed back as a `data:` URI, links and a GET form posted to the Go chrome.
+
+![netscrape in the browser](docs/netscrape-demo.png "the Go chrome — tab strip, address bar, history — rendering a sample page with its stylesheet and image transcoded in")
+
+A static page can only fetch its own origin, so the demo reaches the sample
+site and says so for anything else. That limit is the transport's, not the
+browser's: the same seam dials the dmsg mesh in skywire's wasm visor, and in
+[shipyard](https://0magnet.github.io/shipyard/) it reaches a Go server running
+in the same tab over a virtual loopback.
+
 The chrome — a tab strip, an address bar, back/forward/reload, history — is DOM
 built from Go with `syscall/js`. Each tab is a sandboxed `<iframe>`. A page is
 fetched over a **host-supplied transport**, transcoded (rendered into a

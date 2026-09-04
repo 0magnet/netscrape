@@ -13,6 +13,17 @@ const startPage = "data:text/html,<body style='font-family:sans-serif;padding:2e
 	"<h1>A browser, in Go</h1><p>The chrome is syscall/js. Each tab is an iframe. " +
 	"Use + for a new tab, or type a URL above.</p></body>"
 
+// home is the page a new tab opens. A host that has something of its own to
+// show — a demo site served beside the browser, a mesh index — sets
+// globalThis.__netscrapeStart to its URL; everyone else gets the built-in
+// page, which is what this did before there was a way to say otherwise.
+func home() string {
+	if v := js.Global().Get("__netscrapeStart"); v.Type() == js.TypeString && v.String() != "" {
+		return v.String()
+	}
+	return startPage
+}
+
 // navShim runs inside the sandboxed page. A sandboxed srcdoc has an opaque
 // origin and can't navigate itself across sites, so it relays intent to the
 // parent (this Go browser) via postMessage: link clicks and form GETs become a
@@ -307,7 +318,7 @@ func Open(root js.Value) {
 	strip = mk("div")
 	strip.Get("style").Set("cssText", "display:flex;gap:2px;align-items:flex-end;background:#100d18;border-bottom:1px solid #2a2342;padding:3px 3px 0;min-height:24px")
 	plus := btn("+", "padding:.2em .55em;border-radius:5px 5px 0 0")
-	onClick(plus, func() { addTab(startPage) })
+	onClick(plus, func() { addTab(home()) })
 	strip.Call("appendChild", plus)
 
 	bar := mk("div")
@@ -374,7 +385,7 @@ func Open(root js.Value) {
 		return nil
 	}))
 
-	addTab(startPage)
+	addTab(home())
 }
 
 // Navigate loads url in the ACTIVE tab, recording it in that tab's history —
