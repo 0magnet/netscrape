@@ -68,3 +68,36 @@ its own transcoder, a `SkywireBrowse` panel, address-bar channel dispatch, and
 window management, grown inside skywire. That version lives on the
 [`js` branch](https://github.com/0magnet/netscrape/tree/js). `main` is the Go
 rewrite; consumers move over as it reaches parity.
+
+## Dependency Graph
+
+Made with [goda](https://github.com/loov/goda):
+
+```
+# GOOS=js: the import edges of a wasm program live in js/wasm-tagged
+# files and are invisible to a host-context run
+GOOS=js GOARCH=wasm go run github.com/loov/goda@latest graph github.com/0magnet/netscrape/... | dot -Tsvg -o docs/netscrape-goda-graph.svg
+```
+
+![Dependency Graph](docs/netscrape-goda-graph.svg "github.com/0magnet/netscrape Dependency Graph")
+
+## Lines of Code
+
+Made with [gocloc](https://github.com/hhatto/gocloc) (excludes `vendor/`, `node_modules/`, `.git/`):
+
+```
+gocloc --not-match-d='(vendor|node_modules|\.git)' .
+```
+
+```
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Go                               4             43             99            376
+Markdown                         1             18              0             52
+JavaScript                       1              0             14             42
+Bourne Shell                     1              0              4              6
+-------------------------------------------------------------------------------
+TOTAL                            7             61            117            476
+-------------------------------------------------------------------------------
+```
