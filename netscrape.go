@@ -6,51 +6,13 @@
 // The browser is Go; only the rendering (the iframe) and the network (the
 // transport) are delegated.
 //
-// A host serves BrowserWasm() at a URL and includes LoaderJS(), then calls
-// globalThis.Netscrape.open(element, opts) to mount it — see loader.js.
+// The browser is a LIBRARY: a host compiles it into its own Go/wasm binary and
+// calls netscrape.Open(element) once (see browser.go, built for js/wasm), so it
+// shares that binary's Go runtime — no separate module, no second runtime. The
+// standalone binary (cmd/browser) is a thin wrapper for hosts that would rather
+// serve or exec it as its own wasm; its pre-built blob and loader live in the
+// dist subpackage.
 //
 // The previous JavaScript engine (browse.js, the SkywireBrowse panel) lives on
 // the `js` branch.
 package netscrape
-
-import (
-	"bytes"
-	"compress/gzip"
-	_ "embed"
-	"io"
-	"sync"
-)
-
-//go:embed browser.wasm.gz
-var browserWasmGz []byte
-
-//go:embed loader.js
-var loaderJS []byte
-
-// BrowserWasmGz is the compressed browser module, for a consumer that inlines
-// it into a page rather than serving it as a separate fetch.
-func BrowserWasmGz() []byte { return browserWasmGz }
-
-// LoaderJS returns loader.js, which defines globalThis.Netscrape.open.
-func LoaderJS() []byte { return loaderJS }
-
-var (
-	browserOnce sync.Once
-	browserWasm []byte
-)
-
-// BrowserWasm is the browser module as served (e.g. at /netscrape.wasm),
-// inflated once on first use and kept.
-func BrowserWasm() []byte {
-	browserOnce.Do(func() {
-		zr, err := gzip.NewReader(bytes.NewReader(browserWasmGz))
-		if err != nil {
-			return
-		}
-		defer zr.Close() //nolint:errcheck
-		if b, err := io.ReadAll(zr); err == nil {
-			browserWasm = b
-		}
-	})
-	return browserWasm
-}

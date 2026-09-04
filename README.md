@@ -16,14 +16,32 @@ over the dmsg mesh — the host decides, by what it plugs into the fetch.
 
 ## Use
 
-A host serves the module and includes the loader, then mounts it into an
-element and supplies the network:
+The browser is a **library**. There are two ways to host it.
+
+### As a library — compiled into your own wasm (no separate runtime)
+
+A host that already ships a Go/wasm binary (skywire's visor page) imports
+netscrape and calls `Open` once. The browser compiles into that binary and
+shares its Go runtime — there is no second wasm module and no duplicated ~2 MB
+runtime. Set the transport on `globalThis.__netscrapeFetch` first.
 
 ```go
+//go:build js && wasm
 import "github.com/0magnet/netscrape"
 
-serveBytes("/netscrape.wasm", "application/wasm", netscrape.BrowserWasm())
-serveJS(netscrape.LoaderJS()) // defines globalThis.Netscrape.open
+netscrape.Open(mountElement) // returns immediately; handlers keep it alive
+```
+
+### As a standalone module — served or exec'd as its own wasm
+
+A host that would rather serve the browser as a separate fetch (or a shell that
+`run`s it) uses the `dist` subpackage, which carries the pre-built blob + loader:
+
+```go
+import "github.com/0magnet/netscrape/dist"
+
+serveBytes("/netscrape.wasm", "application/wasm", dist.BrowserWasm())
+serveJS(dist.LoaderJS()) // defines globalThis.Netscrape.open
 ```
 
 ```js
@@ -35,12 +53,12 @@ Netscrape.open(document.getElementById("browser"), {
 });
 ```
 
-Mesh hosts (`*.dmsg`, `*.skysocks`, a 66-hex public key) route through
+Either way, mesh hosts (`*.dmsg`, `*.skysocks`, a 66-hex public key) route through
 `fetchDmsg`; everything else through `fetchClearnet`; absent either, a plain
 same-origin `fetch`. The browser reads `globalThis.__netscrapeMount` for its
 element and `globalThis.__netscrapeFetch(url)` for every request.
 
-`./build.sh` rebuilds `browser.wasm.gz` (embedded by `netscrape.go`) from
+`./build.sh` rebuilds `dist/browser.wasm.gz` (embedded by `dist`) from
 `cmd/browser`.
 
 ## The JavaScript engine
