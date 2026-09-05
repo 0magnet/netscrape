@@ -360,7 +360,11 @@ func setFavicon(t *tab, iconURL string) {
 	})
 	onResp = js.FuncOf(func(_ js.Value, a []js.Value) any {
 		if a[0].Get("status").Truthy() && a[0].Get("status").Int() >= 400 {
-			done()
+			// Reject and let onErr do the releasing. Calling done() here first
+			// freed onErr and then handed the rejection straight to it, so the
+			// catch invoked a js.Func that no longer existed — Go reports that
+			// as "call to released function". A site without a favicon takes
+			// this path on every page load, which is most of them.
 			return g.Get("Promise").Call("reject")
 		}
 		if h := a[0].Get("headers").Call("get", "content-type"); h.Truthy() {
