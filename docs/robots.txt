@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://netscrape.magnetosphere.net/sitemap.xml
