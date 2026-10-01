@@ -439,6 +439,10 @@ func navigate(t *tab, url string) {
 	t.hist = append(t.hist, url)
 	t.pos = len(t.hist) - 1
 	load(t, url)
+	// There is now somewhere to go back to: say so on the buttons.
+	if t.br != nil {
+		t.br.syncNav()
+	}
 }
 
 func (b *browser) activate(i int) {
@@ -1457,6 +1461,7 @@ func originMoved(t *tab, url string, cached bool) {
 	landed := t.originLoaded
 	t.originLoaded = false
 	if t.pos >= 0 && t.pos < len(t.hist) && t.hist[t.pos] == url {
+		t.br.syncNav()
 		return
 	}
 	if landed && t.pos >= 0 && t.pos < len(t.hist) {
