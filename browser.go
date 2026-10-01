@@ -1065,6 +1065,12 @@ func Open(root js.Value) {
 			if t := b.cur(); t != nil {
 				load(t, t.hist[t.pos])
 			}
+		case e.Get("altKey").Bool() && key == "arrowleft":
+			stop()
+			b.back.Call("click") // a disabled button is a no-op, as the key should be
+		case e.Get("altKey").Bool() && key == "arrowright":
+			stop()
+			b.fwd.Call("click")
 		case ctrl && key == "tab":
 			stop()
 			if n := len(b.tabs); n > 1 {
@@ -1111,7 +1117,11 @@ func Open(root js.Value) {
 					return nil
 				}
 				if typ.String() == "realorigin-location" {
-					originMoved(t, u.String(), data.Get("cached").Truthy())
+					title := ""
+					if tv := data.Get("title"); tv.Type() == js.TypeString {
+						title = tv.String()
+					}
+					originMoved(t, u.String(), title, data.Get("cached").Truthy())
 				} else if data.Get("newTab").Truthy() {
 					b.addTab(u.String())
 				} else {
@@ -1456,8 +1466,10 @@ func webURL(s string) bool {
 // actually landed on, after any redirect: it replaces the entry rather than
 // adding one, or Back would lead to an address that only redirects forward
 // again. Later reports are the reader moving within the site, and are history.
-func originMoved(t *tab, url string, cached bool) {
+func originMoved(t *tab, url, title string, cached bool) {
 	t.readyAt, t.cached = nowMs(), cached
+	// The page's title, which this browser cannot read across the origin.
+	setTitle(t, title, url)
 	landed := t.originLoaded
 	t.originLoaded = false
 	if t.pos >= 0 && t.pos < len(t.hist) && t.hist[t.pos] == url {
@@ -1473,7 +1485,7 @@ func originMoved(t *tab, url string, cached bool) {
 		t.hist = append(t.hist, url)
 		t.pos = len(t.hist) - 1
 	}
-	setTitle(t, "", url)
+	setTitle(t, title, url)
 	if t.isFront() {
 		t.br.addr.Set("value", url)
 	}
