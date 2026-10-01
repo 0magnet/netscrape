@@ -143,7 +143,19 @@ type tab struct {
 	// originLoaded: this browser has just pointed the frame at a real-origin
 	// page, and the page has not yet said where it landed (originMoved).
 	originLoaded bool
+	// fromHistory: the load under way is Back or Forward, which a real-origin
+	// page may answer from its cache (see historyMark).
+	fromHistory bool
 }
+
+// historyMark is the fragment a real-origin frame is loaded with when the
+// load is Back or Forward. A browser answers those from cache rather than the
+// network; here the network is a trip over the mesh behind an interstitial, so
+// the page shows the copy it kept of itself instead. Only the frame reads the
+// mark — a fragment is never sent to a server — and it removes it before the
+// page sees its address. Nothing is kept running: the page is drawn again
+// from its stored response, as a cached page is.
+const historyMark = "netscrape-history"
 
 // isFront reports whether t is the tab its own window currently has in
 // front, so a handler knows whether it should touch that window's address
@@ -262,6 +274,8 @@ func displayURL(src string) string {
 // for native rendering. A scheme-less address is normalized to http:// so the
 // transport always gets a URL.
 func load(t *tab, url string) {
+	fromHistory := t.fromHistory
+	t.fromHistory = false
 	// Name the tab after where it is. "tab 3" tells a person nothing once
 	// three of them are open; the host is what they recognize, and it fits in
 	// a strip where a whole URL never would.
@@ -304,7 +318,7 @@ func load(t *tab, url string) {
 		}
 		if OriginLoader != nil {
 			if p, ok := OriginLoader(url); ok && p.Truthy() && p.Get("then").Type() == js.TypeFunction {
-				loadOrigin(t, url, p)
+				loadOrigin(t, url, p, fromHistory)
 				return
 			}
 		}
@@ -363,6 +377,7 @@ func fetchPage(t *tab, url string) {
 }
 
 func navigate(t *tab, url string) {
+	t.fromHistory = false
 	if t.pos >= 0 && t.pos < len(t.hist)-1 {
 		t.hist = t.hist[:t.pos+1]
 	}
@@ -920,12 +935,14 @@ func Open(root js.Value) {
 	})
 	onClick(b.reload, func() {
 		if t := b.cur(); t != nil {
+			t.fromHistory = false
 			load(t, t.hist[t.pos])
 		}
 	})
 	onClick(b.back, func() {
 		if t := b.cur(); t != nil && t.pos > 0 {
 			t.pos--
+			t.fromHistory = true
 			load(t, t.hist[t.pos])
 			b.syncNav()
 		}
@@ -933,6 +950,7 @@ func Open(root js.Value) {
 	onClick(b.fwd, func() {
 		if t := b.cur(); t != nil && t.pos < len(t.hist)-1 {
 			t.pos++
+			t.fromHistory = true
 			load(t, t.hist[t.pos])
 			b.syncNav()
 		}
@@ -1398,7 +1416,7 @@ func originMoved(t *tab, url string) {
 	t.br.syncNav()
 }
 
-func loadOrigin(t *tab, url string, p js.Value) {
+func loadOrigin(t *tab, url string, p js.Value, fromHistory bool) {
 	setLoading(t, true)
 	var onOK, onErr js.Func
 	release := func() {
@@ -1420,6 +1438,9 @@ func loadOrigin(t *tab, url string, p js.Value) {
 		// from the frame being a different ORIGIN, which is stronger than the
 		// sandbox and, unlike it, leaves the platform intact.
 		t.frame.Call("removeAttribute", "sandbox")
+		if fromHistory {
+			src = withHistoryMark(src)
+		}
 		t.originLoaded = true
 		t.directSrc = src
 		t.frame.Set("src", src)
@@ -1439,4 +1460,12 @@ func loadOrigin(t *tab, url string, p js.Value) {
 		return nil
 	})
 	p.Call("then", onOK).Call("catch", onErr)
+}
+
+// withHistoryMark adds historyMark to src's fragment.
+func withHistoryMark(src string) string {
+	if strings.Contains(src, "#") {
+		return src + ";" + historyMark
+	}
+	return src + "#" + historyMark
 }
