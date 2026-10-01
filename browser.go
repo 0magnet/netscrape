@@ -146,6 +146,60 @@ type tab struct {
 	// fromHistory: the load under way is Back or Forward, which a real-origin
 	// page may answer from its cache (see historyMark).
 	fromHistory bool
+	// For State: when the current page's load began and when its content was
+	// on screen (0 while not yet), whether it is a real-origin page, and
+	// whether that page was drawn from its cache. Milliseconds since the epoch.
+	startedAt, readyAt float64
+	isOrigin, cached   bool
+}
+
+// nowMs is the browser's clock, milliseconds since the epoch.
+func nowMs() float64 { return js.Global().Get("Date").Call("now").Float() }
+
+// TabState is one tab, as State reports it.
+type TabState struct {
+	Label     string   `json:"label"`
+	History   []string `json:"history"`
+	Pos       int      `json:"pos"`
+	Loading   bool     `json:"loading"`
+	StartedAt float64  `json:"started_at"`
+	// ReadyAt is when the current page's content was on screen, 0 while it
+	// is not yet: for a real-origin page, when it reported its address.
+	ReadyAt float64 `json:"ready_at"`
+	Origin  bool    `json:"origin"`
+	// Cached: the real-origin page was drawn from its own cache (Back or
+	// Forward), not fetched.
+	Cached bool `json:"cached"`
+}
+
+// WindowState is one browser window, as State reports it.
+type WindowState struct {
+	Open   bool       `json:"open"`
+	Active int        `json:"active"`
+	Tabs   []TabState `json:"tabs"`
+}
+
+// State reports every window Open has built, oldest first: each tab's
+// history and where in it the tab is, and when its current page loaded. It is
+// for tests and harnesses, which otherwise have to read the browser's state
+// out of its DOM; it changes nothing.
+func State() []WindowState {
+	out := make([]WindowState, 0, len(browsers))
+	for _, b := range browsers {
+		w := WindowState{Open: b.root.Truthy() && b.root.Get("isConnected").Bool(), Active: b.active}
+		for _, t := range b.tabs {
+			label := ""
+			if t.lbl.Truthy() {
+				label = t.lbl.Get("textContent").String()
+			}
+			w.Tabs = append(w.Tabs, TabState{
+				Label: label, History: append([]string(nil), t.hist...), Pos: t.pos, Loading: t.loading,
+				StartedAt: t.startedAt, ReadyAt: t.readyAt, Origin: t.isOrigin, Cached: t.cached,
+			})
+		}
+		out = append(out, w)
+	}
+	return out
 }
 
 // historyMark is the fragment a real-origin frame is loaded with when the
@@ -276,6 +330,7 @@ func displayURL(src string) string {
 func load(t *tab, url string) {
 	fromHistory := t.fromHistory
 	t.fromHistory = false
+	t.startedAt, t.readyAt, t.isOrigin, t.cached = nowMs(), 0, false, false
 	// Name the tab after where it is. "tab 3" tells a person nothing once
 	// three of them are open; the host is what they recognize, and it fits in
 	// a strip where a whole URL never would.
@@ -441,6 +496,9 @@ func setLoading(t *tab, on bool) {
 		return
 	}
 	t.loading = on
+	if !on && !t.isOrigin && t.readyAt == 0 {
+		t.readyAt = nowMs() // a real-origin page is ready when it reports in (originMoved)
+	}
 	if on {
 		t.ico.Get("style").Set("visibility", "hidden")
 		t.btn.Get("style").Set("opacity", ".7")
@@ -1049,7 +1107,7 @@ func Open(root js.Value) {
 					return nil
 				}
 				if typ.String() == "realorigin-location" {
-					originMoved(t, u.String())
+					originMoved(t, u.String(), data.Get("cached").Truthy())
 				} else if data.Get("newTab").Truthy() {
 					b.addTab(u.String())
 				} else {
@@ -1394,7 +1452,8 @@ func webURL(s string) bool {
 // actually landed on, after any redirect: it replaces the entry rather than
 // adding one, or Back would lead to an address that only redirects forward
 // again. Later reports are the reader moving within the site, and are history.
-func originMoved(t *tab, url string) {
+func originMoved(t *tab, url string, cached bool) {
+	t.readyAt, t.cached = nowMs(), cached
 	landed := t.originLoaded
 	t.originLoaded = false
 	if t.pos >= 0 && t.pos < len(t.hist) && t.hist[t.pos] == url {
@@ -1442,6 +1501,7 @@ func loadOrigin(t *tab, url string, p js.Value, fromHistory bool) {
 			src = withHistoryMark(src)
 		}
 		t.originLoaded = true
+		t.isOrigin = true
 		t.directSrc = src
 		t.frame.Set("src", src)
 		// Named from the URL: the frame's own <title> is unreadable across the
